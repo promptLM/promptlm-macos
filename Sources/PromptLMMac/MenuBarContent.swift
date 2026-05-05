@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import AppKit
+import Combine
 
 /// Owns the NSStatusItem (menu bar icon) and its menu.
 ///
@@ -11,27 +12,54 @@ import AppKit
 final class StatusBarController: NSObject, NSMenuDelegate {
 
     private let statusItem: NSStatusItem
-    private let repository: LocalFolderRepository
+    private let store: SettingsStore
+    private var repository: LocalFolderRepository
     private let renderer = PromptRenderer()
     private let inserter = PasteInserter()
     private let hotkey = GlobalHotkey()
     private var lastLoad: LocalFolderRepository.LoadResult?
     private var formController: FormWindowController?
+    private var cancellables: Set<AnyCancellable> = []
 
-    init(repository: LocalFolderRepository = LocalFolderRepository(root: LocalFolderRepository.defaultRoot())) {
+    init(store: SettingsStore = .shared) {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        self.repository = repository
+        self.store = store
+        self.repository = LocalFolderRepository(root: store.repositoryURL)
         super.init()
         configureButton()
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
         rebuildMenu()
-        registerDefaultHotkey()
+        registerHotkey(store.hotkey)
+        observeSettings()
     }
 
-    private func registerDefaultHotkey() {
-        hotkey.register(.default) { [weak self] in
+    private func observeSettings() {
+        store.$repositoryPath
+            .dropFirst()
+            .sink { [weak self] newPath in
+                guard let self else { return }
+                let url = URL(
+                    fileURLWithPath: (newPath as NSString).expandingTildeInPath,
+                    isDirectory: true
+                )
+                self.repository = LocalFolderRepository(root: url)
+                self.rebuildMenu()
+            }
+            .store(in: &cancellables)
+
+        store.$hotkey
+            .dropFirst()
+            .sink { [weak self] newSpec in
+                self?.registerHotkey(newSpec)
+                self?.rebuildMenu()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func registerHotkey(_ spec: HotkeySpec) {
+        hotkey.register(spec) { [weak self] in
             self?.openStatusMenu()
         }
     }

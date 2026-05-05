@@ -22,9 +22,17 @@ Lives in your menu bar, opens a Spotlight-style picker via configurable global s
 
 After install you should see a small chat-bubble icon in the menu bar. Click it to see your prompts, or hit **⌃⌥⌘P** anywhere to open the menu without reaching for the menu bar.
 
+### Settings
+
+Open with the menu bar icon → **Settings…** (⌘,):
+
+- **Prompt repository** — pick the folder the app scans for `*.yaml`, `*.yml`, `*.json` prompt specs.
+- **Global hotkey** — click **Record**, press your combo (must include ⌘, ⌥, or ⌃). ⎋ cancels.
+- **Launch at login** — uses `SMAppService` (macOS 13+).
+
 ### Seeding prompts
 
-By default the app reads from `~/.promptlm/prompts`. Override with the env var `PROMPTLM_PROMPTS_DIR`. To try the bundled samples:
+By default the app reads from `~/.promptlm/prompts`. To try the bundled samples:
 
 ```bash
 mkdir -p ~/.promptlm/prompts
@@ -83,9 +91,9 @@ The PromptSpec format is defined by [promptlm-app](https://github.com/promptLM/p
 - [x] Native `{{key}}` renderer
 - [x] Placeholder form (dynamic from PromptSpec)
 - [x] Paste-at-cursor insertion with pasteboard restore
-- [x] Global hotkey opens the menu (default ⌃⌥⌘P, hardcoded for now)
+- [x] Global hotkey opens the menu (default ⌃⌥⌘P)
+- [x] Settings window — repo path picker, hotkey recorder, launch at login
 - [ ] Spotlight-style quick picker with fuzzy search
-- [ ] Configurable hotkey via Settings UI
 - [ ] Settings window (repo path, hotkey recorder, autostart)
 - [ ] Code signing + notarization + DMG release
 
