@@ -11,7 +11,20 @@ Lives in your menu bar, opens a Spotlight-style picker via configurable global s
 - macOS 13 (Ventura) or later
 - Xcode 15+ / Swift 5.9+ (for development)
 
-## Build
+## Build & install
+
+```bash
+./install.sh             # build, wrap into .app, install to ~/Applications
+./install.sh --launch    # also start the app
+./install.sh --system    # install to /Applications instead (uses sudo)
+./install.sh --uninstall # remove the installed bundle
+```
+
+After install you should see a small chat-bubble icon in the menu bar. Click it for the (currently placeholder) menu.
+
+The app is ad-hoc signed; on first launch macOS may show a Gatekeeper prompt — right-click the app in Finder and choose **Open** to confirm. Real Developer ID signing + notarization comes later in the roadmap.
+
+For development without bundling:
 
 ```bash
 swift build
