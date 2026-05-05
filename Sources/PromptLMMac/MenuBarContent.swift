@@ -19,6 +19,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let hotkey = GlobalHotkey()
     private var lastLoad: LocalFolderRepository.LoadResult?
     private var formController: FormWindowController?
+    private var settingsController: SettingsWindowController?
     private var cancellables: Set<AnyCancellable> = []
 
     init(store: SettingsStore = .shared) {
@@ -334,12 +335,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openSettings() {
-        if #available(macOS 14, *) {
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        } else {
-            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-        }
-        NSApp.activate(ignoringOtherApps: true)
+        let controller = settingsController ?? SettingsWindowController(store: store)
+        settingsController = controller
+        controller.present()
     }
 
     @objc private func quit() {

@@ -9,8 +9,15 @@ struct PromptLMMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        Settings {
-            SettingsView(store: SettingsStore.shared)
-        }
+        // We deliberately ship no SwiftUI Settings scene: in an LSUIElement
+        // (menu-bar-only) app it does not get a reliable show path. The
+        // status bar's "Settings…" item presents a SettingsWindowController
+        // directly. Returning a no-op WindowGroup keeps Scene{} happy
+        // without putting a window on screen at launch.
+        #if compiler(>=5.9)
+        Settings { EmptyView() }
+        #else
+        WindowGroup { EmptyView() }
+        #endif
     }
 }
