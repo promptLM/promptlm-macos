@@ -43,6 +43,8 @@ done
 APP_PATH="$INSTALL_DIR/$APP_NAME.app"
 
 if [ "$UNINSTALL" -eq 1 ]; then
+    echo "==> Stopping any running instance"
+    pkill -f "$APP_NAME.app/Contents/MacOS/$APP_NAME" 2>/dev/null || true
     echo "==> Removing $APP_PATH"
     $USE_SUDO rm -rf "$APP_PATH"
     echo "Done."
@@ -98,11 +100,26 @@ PLIST
 echo "==> Ad-hoc signing"
 codesign --force --sign - "$STAGE_APP" >/dev/null
 
+echo "==> Stopping any running instance"
+# Without this, LaunchServices keeps the old PID registered for the bundle ID
+# and a subsequent `open` will activate the stale process instead of starting
+# the freshly installed one.
+pkill -f "$APP_NAME.app/Contents/MacOS/$APP_NAME" 2>/dev/null || true
+# Give launchd a moment to release the registration.
+for _ in 1 2 3 4 5; do
+    pgrep -f "$APP_NAME.app/Contents/MacOS/$APP_NAME" >/dev/null || break
+    sleep 0.2
+done
+
 echo "==> Installing to $APP_PATH"
 mkdir -p "$INSTALL_DIR" 2>/dev/null || $USE_SUDO mkdir -p "$INSTALL_DIR"
 $USE_SUDO rm -rf "$APP_PATH"
 $USE_SUDO cp -R "$STAGE_APP" "$APP_PATH"
 rm -rf "$STAGE_DIR"
+
+# Refresh LaunchServices registration so `open` resolves to the new bundle.
+/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister \
+    -f "$APP_PATH" 2>/dev/null || true
 
 # Strip quarantine attribute that may be inherited from build output
 $USE_SUDO xattr -dr com.apple.quarantine "$APP_PATH" 2>/dev/null || true
