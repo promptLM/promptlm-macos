@@ -12,7 +12,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private let statusItem: NSStatusItem
     private let repository: LocalFolderRepository
+    private let renderer = PromptRenderer()
     private var lastLoad: LocalFolderRepository.LoadResult?
+    private var formController: FormWindowController?
 
     init(repository: LocalFolderRepository = LocalFolderRepository(root: LocalFolderRepository.defaultRoot())) {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -174,12 +176,51 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func promptSelected(_ sender: NSMenuItem) {
         guard let prompt = sender.representedObject as? PromptSpec else { return }
-        // Step 2 stops here: we only confirm wiring works. Form + render +
-        // paste are the next steps. For now, copy the raw prompt text to the
-        // pasteboard so you can paste it manually and verify content.
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(prompt.text, forType: .string)
-        NSLog("[promptLM] prompt selected: \(prompt.id) — copied raw text to clipboard")
+        if prompt.placeholders.isEmpty {
+            renderAndCopy(prompt: prompt, values: [:])
+            return
+        }
+        presentForm(for: prompt)
+    }
+
+    private func presentForm(for prompt: PromptSpec) {
+        let controller = FormWindowController(
+            prompt: prompt,
+            onSubmit: { [weak self] values in
+                self?.renderAndCopy(prompt: prompt, values: values)
+            },
+            onClose: { [weak self] in
+                self?.formController = nil
+            }
+        )
+        formController = controller
+        if #available(macOS 14, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        controller.showWindow(nil)
+    }
+
+    private func renderAndCopy(prompt: PromptSpec, values: [String: String]) {
+        do {
+            let rendered = try renderer.render(prompt.text, with: values)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(rendered, forType: .string)
+            NSLog("[promptLM] copied \(rendered.count) chars to clipboard from \(prompt.id)")
+        } catch {
+            NSLog("[promptLM] render failed for \(prompt.id): \(error)")
+            presentRenderError(prompt: prompt, error: error)
+        }
+    }
+
+    private func presentRenderError(prompt: PromptSpec, error: Error) {
+        let alert = NSAlert()
+        alert.messageText = "Could not render \"\(prompt.name)\""
+        alert.informativeText = String(describing: error)
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     @objc private func reload() {

@@ -31,7 +31,12 @@ mkdir -p ~/.promptlm/prompts
 cp docs/sample-prompts/* ~/.promptlm/prompts/
 ```
 
-Then click the menu bar icon — the prompts should appear, grouped by their `group` field. Selecting a prompt currently copies its raw text (with `{{placeholders}}` not yet substituted) to the clipboard. Form-based placeholder substitution and paste-at-cursor are the next steps.
+Then click the menu bar icon — the prompts should appear, grouped by their `group` field. Selecting a prompt:
+
+- with **no placeholders** → its text is copied to the clipboard immediately
+- with **placeholders** → a form opens with a field per placeholder (defaults pre-filled, required fields marked `*`); on submit the rendered text is copied to the clipboard
+
+Paste-at-cursor with pasteboard restore is the next step.
 
 ### Prompt file format
 
@@ -67,10 +72,10 @@ The PromptSpec format is defined by [promptlm-app](https://github.com/promptLM/p
 
 - [x] Repo scaffold + menu bar icon
 - [x] Local folder prompt repository (YAML/JSON) — prompts listed in menu
+- [x] Native `{{key}}` renderer
+- [x] Placeholder form (dynamic from PromptSpec)
 - [ ] Spotlight-style quick picker with fuzzy search
 - [ ] Configurable global hotkey
-- [ ] Placeholder form (dynamic from PromptSpec)
-- [ ] Native `{{key}}` renderer (parity with promptlm-app `DefaultPromptRenderer`)
 - [ ] Paste-at-cursor insertion with pasteboard restore
 - [ ] Settings window (repo path, hotkey recorder, autostart)
 - [ ] Code signing + notarization + DMG release
