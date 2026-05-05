@@ -33,10 +33,18 @@ cp docs/sample-prompts/* ~/.promptlm/prompts/
 
 Then click the menu bar icon — the prompts should appear, grouped by their `group` field. Selecting a prompt:
 
-- with **no placeholders** → its text is copied to the clipboard immediately
-- with **placeholders** → a form opens with a field per placeholder (defaults pre-filled, required fields marked `*`); on submit the rendered text is copied to the clipboard
+- with **no placeholders** → its text is pasted at your cursor
+- with **placeholders** → a form opens with a field per placeholder (defaults pre-filled, required fields marked `*`); on submit the rendered text is pasted at your cursor
 
-Paste-at-cursor with pasteboard restore is the next step.
+The original clipboard contents are restored ~400 ms after the paste.
+
+### Accessibility permission
+
+The first time you select a prompt, macOS will block the synthesized ⌘V. The app shows an alert and offers to open System Settings — flip the toggle for **promptLM** under **Privacy & Security → Accessibility**, then try again.
+
+> **Ad-hoc build caveat:** because the install script signs the app ad-hoc (no Developer ID), macOS may treat each rebuild as a different binary and revoke the permission. If pasting silently stops working after `./install.sh`, re-grant the toggle. Real signing + notarization will fix this; it is on the roadmap.
+
+If pasting fails for any other reason, the rendered prompt is still copied to your clipboard so you can paste manually.
 
 ### Prompt file format
 
@@ -74,9 +82,9 @@ The PromptSpec format is defined by [promptlm-app](https://github.com/promptLM/p
 - [x] Local folder prompt repository (YAML/JSON) — prompts listed in menu
 - [x] Native `{{key}}` renderer
 - [x] Placeholder form (dynamic from PromptSpec)
+- [x] Paste-at-cursor insertion with pasteboard restore
 - [ ] Spotlight-style quick picker with fuzzy search
 - [ ] Configurable global hotkey
-- [ ] Paste-at-cursor insertion with pasteboard restore
 - [ ] Settings window (repo path, hotkey recorder, autostart)
 - [ ] Code signing + notarization + DMG release
 

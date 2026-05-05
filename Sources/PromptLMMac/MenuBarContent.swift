@@ -13,6 +13,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
     private let repository: LocalFolderRepository
     private let renderer = PromptRenderer()
+    private let inserter = PasteInserter()
     private var lastLoad: LocalFolderRepository.LoadResult?
     private var formController: FormWindowController?
 
@@ -176,18 +177,20 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func promptSelected(_ sender: NSMenuItem) {
         guard let prompt = sender.representedObject as? PromptSpec else { return }
+        // Capture the user's frontmost app *before* anything we do can take focus.
+        let target = NSWorkspace.shared.frontmostApplication
         if prompt.placeholders.isEmpty {
-            renderAndCopy(prompt: prompt, values: [:])
+            renderAndInsert(prompt: prompt, values: [:], target: target)
             return
         }
-        presentForm(for: prompt)
+        presentForm(for: prompt, target: target)
     }
 
-    private func presentForm(for prompt: PromptSpec) {
+    private func presentForm(for prompt: PromptSpec, target: NSRunningApplication?) {
         let controller = FormWindowController(
             prompt: prompt,
             onSubmit: { [weak self] values in
-                self?.renderAndCopy(prompt: prompt, values: values)
+                self?.renderAndInsert(prompt: prompt, values: values, target: target)
             },
             onClose: { [weak self] in
                 self?.formController = nil
@@ -202,22 +205,69 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         controller.showWindow(nil)
     }
 
-    private func renderAndCopy(prompt: PromptSpec, values: [String: String]) {
+    private func renderAndInsert(
+        prompt: PromptSpec,
+        values: [String: String],
+        target: NSRunningApplication?
+    ) {
+        let rendered: String
         do {
-            let rendered = try renderer.render(prompt.text, with: values)
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(rendered, forType: .string)
-            NSLog("[promptLM] copied \(rendered.count) chars to clipboard from \(prompt.id)")
+            rendered = try renderer.render(prompt.text, with: values)
         } catch {
             NSLog("[promptLM] render failed for \(prompt.id): \(error)")
-            presentRenderError(prompt: prompt, error: error)
+            presentSimpleError(
+                title: "Could not render \"\(prompt.name)\"",
+                message: String(describing: error)
+            )
+            return
+        }
+
+        do {
+            try inserter.insert(text: rendered, into: target)
+            NSLog("[promptLM] inserted \(rendered.count) chars into \(target?.localizedName ?? "nil") from \(prompt.id)")
+        } catch InsertError.accessibilityDenied {
+            presentAccessibilityRequest(rendered: rendered)
+        } catch {
+            NSLog("[promptLM] insert failed for \(prompt.id): \(error)")
+            // Fallback: at least put the text on the clipboard so the user
+            // can paste manually.
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(rendered, forType: .string)
+            presentSimpleError(
+                title: "Could not paste at cursor",
+                message: "\(error)\n\nThe rendered prompt has been copied to your clipboard."
+            )
         }
     }
 
-    private func presentRenderError(prompt: PromptSpec, error: Error) {
+    private func presentAccessibilityRequest(rendered: String) {
+        // Always leave the rendered text on the clipboard so the user has a
+        // working fallback while permission is being granted.
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(rendered, forType: .string)
+
         let alert = NSAlert()
-        alert.messageText = "Could not render \"\(prompt.name)\""
-        alert.informativeText = String(describing: error)
+        alert.messageText = "Accessibility access needed"
+        alert.informativeText = """
+            promptLM needs Accessibility permission to paste prompts at your \
+            cursor. Open System Settings and enable promptLM under \
+            Privacy & Security → Accessibility, then try again.
+
+            The rendered prompt has been copied to your clipboard so you can \
+            paste it manually in the meantime.
+            """
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Later")
+        if alert.runModal() == .alertFirstButtonReturn {
+            AccessibilityCheck.openSystemSettings()
+        }
+    }
+
+    private func presentSimpleError(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
         alert.runModal()
