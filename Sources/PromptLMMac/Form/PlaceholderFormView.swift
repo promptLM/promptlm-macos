@@ -42,11 +42,11 @@ struct PlaceholderFormView: View {
         VStack(alignment: .leading, spacing: 16) {
             header
             fields
+            Spacer(minLength: 0)
             footer
         }
         .padding(20)
-        .frame(minWidth: 480, idealWidth: 480, maxWidth: 600,
-               minHeight: 200, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear {
             DispatchQueue.main.async {
                 focusedKey = orderedKeys.first
