@@ -41,24 +41,30 @@ struct PlaceholderFormView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    ForEach(orderedKeys, id: \.self) { key in
-                        if let def = prompt.placeholders[key] {
-                            fieldRow(key: key, def: def)
-                        }
-                    }
-                }
-                .padding(.horizontal, 1) // avoid focus-ring clipping
-            }
-            .frame(maxHeight: 360)
+            fields
             footer
         }
         .padding(20)
-        .frame(width: 480)
+        .frame(minWidth: 480, idealWidth: 480, maxWidth: 600,
+               minHeight: 200, alignment: .top)
         .onAppear {
             DispatchQueue.main.async {
                 focusedKey = orderedKeys.first
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var fields: some View {
+        // Plain VStack lets NSHostingController size the window to the content;
+        // a ScrollView here collapses to zero height because its intrinsic size
+        // is unbounded in the scroll axis. If a prompt ever needs scrolling,
+        // we will reintroduce ScrollView with an explicit minHeight.
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(orderedKeys, id: \.self) { key in
+                if let def = prompt.placeholders[key] {
+                    fieldRow(key: key, def: def)
+                }
             }
         }
     }
