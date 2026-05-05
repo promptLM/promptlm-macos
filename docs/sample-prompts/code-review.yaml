@@ -1,0 +1,22 @@
+id: code-review
+name: Code Review Request
+group: Engineering
+description: Asks an LLM to review a code change with a clear focus.
+text: |
+  Please review the following {{language}} code for {{focus}}.
+
+  ```{{language}}
+  {{code}}
+  ```
+
+  Be specific and cite line numbers.
+placeholders:
+  language:
+    description: Programming language
+    default: TypeScript
+  focus:
+    description: What to focus on (correctness, performance, security, …)
+    default: correctness and edge cases
+  code:
+    description: The code to review
+    required: true

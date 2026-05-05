@@ -1,0 +1,16 @@
+{
+  "id": "explain-jargon",
+  "name": "Explain Jargon",
+  "description": "Explain a technical term to a specific audience.",
+  "text": "Explain the term \"{{term}}\" to {{audience}} in plain language. Keep it under 5 sentences.",
+  "placeholders": {
+    "term": {
+      "description": "The term to explain",
+      "required": true
+    },
+    "audience": {
+      "description": "Target audience",
+      "default": "a non-technical product manager"
+    }
+  }
+}

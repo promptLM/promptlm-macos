@@ -1,0 +1,14 @@
+id: standup-summary
+name: Standup Summary
+group: Productivity
+description: Turns rough notes into a yesterday/today/blockers update.
+text: |
+  Turn the following raw notes into a concise daily standup update.
+  Format with three sections: Yesterday, Today, Blockers.
+
+  Notes:
+  {{notes}}
+placeholders:
+  notes:
+    description: Your raw bullet points
+    required: true

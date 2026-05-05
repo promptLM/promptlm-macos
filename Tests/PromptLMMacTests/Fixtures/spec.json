@@ -1,0 +1,7 @@
+{
+  "id": "json-spec",
+  "name": "JSON Spec",
+  "description": "Loaded from JSON.",
+  "text": "Static prompt body.",
+  "placeholders": {}
+}

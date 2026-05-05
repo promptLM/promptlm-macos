@@ -1,0 +1,14 @@
+id: greet
+name: Greeter
+group: demo
+description: Greets someone.
+text: |
+  Hello {{name}}! You have {{count}} new messages.
+placeholders:
+  name:
+    description: Recipient's name
+    default: World
+    required: true
+  count:
+    default: "0"
+    type: number

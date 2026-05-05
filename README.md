@@ -20,7 +20,31 @@ Lives in your menu bar, opens a Spotlight-style picker via configurable global s
 ./install.sh --uninstall # remove the installed bundle
 ```
 
-After install you should see a small chat-bubble icon in the menu bar. Click it for the (currently placeholder) menu.
+After install you should see a small chat-bubble icon in the menu bar. Click it to see your prompts.
+
+### Seeding prompts
+
+By default the app reads from `~/.promptlm/prompts`. Override with the env var `PROMPTLM_PROMPTS_DIR`. To try the bundled samples:
+
+```bash
+mkdir -p ~/.promptlm/prompts
+cp docs/sample-prompts/* ~/.promptlm/prompts/
+```
+
+Then click the menu bar icon — the prompts should appear, grouped by their `group` field. Selecting a prompt currently copies its raw text (with `{{placeholders}}` not yet substituted) to the clipboard. Form-based placeholder substitution and paste-at-cursor are the next steps.
+
+### Prompt file format
+
+YAML or JSON. Minimum:
+
+```yaml
+id: my-prompt
+name: My Prompt
+text: Hello {{audience}}!
+placeholders:
+  audience:
+    default: world
+```
 
 The app is ad-hoc signed; on first launch macOS may show a Gatekeeper prompt — right-click the app in Finder and choose **Open** to confirm. Real Developer ID signing + notarization comes later in the roadmap.
 
@@ -42,7 +66,7 @@ The PromptSpec format is defined by [promptlm-app](https://github.com/promptLM/p
 ## Roadmap
 
 - [x] Repo scaffold + menu bar icon
-- [ ] Local folder prompt repository (YAML/JSON)
+- [x] Local folder prompt repository (YAML/JSON) — prompts listed in menu
 - [ ] Spotlight-style quick picker with fuzzy search
 - [ ] Configurable global hotkey
 - [ ] Placeholder form (dynamic from PromptSpec)
