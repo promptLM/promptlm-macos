@@ -20,7 +20,7 @@ Lives in your menu bar, opens a Spotlight-style picker via configurable global s
 ./install.sh --uninstall # remove the installed bundle
 ```
 
-After install you should see a small chat-bubble icon in the menu bar. Click it to see your prompts.
+After install you should see a small chat-bubble icon in the menu bar. Click it to see your prompts, or hit **⌃⌥⌘P** anywhere to open the menu without reaching for the menu bar.
 
 ### Seeding prompts
 
@@ -83,8 +83,9 @@ The PromptSpec format is defined by [promptlm-app](https://github.com/promptLM/p
 - [x] Native `{{key}}` renderer
 - [x] Placeholder form (dynamic from PromptSpec)
 - [x] Paste-at-cursor insertion with pasteboard restore
+- [x] Global hotkey opens the menu (default ⌃⌥⌘P, hardcoded for now)
 - [ ] Spotlight-style quick picker with fuzzy search
-- [ ] Configurable global hotkey
+- [ ] Configurable hotkey via Settings UI
 - [ ] Settings window (repo path, hotkey recorder, autostart)
 - [ ] Code signing + notarization + DMG release
 

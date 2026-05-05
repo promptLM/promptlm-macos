@@ -14,6 +14,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let repository: LocalFolderRepository
     private let renderer = PromptRenderer()
     private let inserter = PasteInserter()
+    private let hotkey = GlobalHotkey()
     private var lastLoad: LocalFolderRepository.LoadResult?
     private var formController: FormWindowController?
 
@@ -26,6 +27,19 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
         rebuildMenu()
+        registerDefaultHotkey()
+    }
+
+    private func registerDefaultHotkey() {
+        hotkey.register(.default) { [weak self] in
+            self?.openStatusMenu()
+        }
+    }
+
+    private func openStatusMenu() {
+        // Programmatically click the status item button to drop the menu.
+        // performClick(_:) handles positioning and key-window plumbing for us.
+        statusItem.button?.performClick(nil)
     }
 
     // MARK: - NSMenuDelegate
@@ -49,7 +63,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.removeAllItems()
         menu.autoenablesItems = false
 
-        let title = NSMenuItem(title: "promptLM", action: nil, keyEquivalent: "")
+        let titleText: String
+        if let spec = hotkey.spec {
+            titleText = "promptLM  ·  \(spec.displayString)"
+        } else {
+            titleText = "promptLM"
+        }
+        let title = NSMenuItem(title: titleText, action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
         menu.addItem(.separator())
