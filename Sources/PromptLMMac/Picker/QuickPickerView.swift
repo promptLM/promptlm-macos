@@ -38,8 +38,13 @@ struct QuickPickerView: View {
             onEsc:   { onCancel() }
         ))
         .onAppear {
-            searchFocused = true
             selection = results.first?.id
+            // Defer focus to the next runloop tick — when the picker is
+            // presented from a hotkey, .onAppear fires before the panel is
+            // fully key, and an immediate @FocusState assignment is dropped.
+            DispatchQueue.main.async {
+                searchFocused = true
+            }
         }
         .onChange(of: query) { _ in
             // Keep selection valid as the result list changes.

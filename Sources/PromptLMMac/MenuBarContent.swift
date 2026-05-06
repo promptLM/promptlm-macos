@@ -407,7 +407,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openSettings() {
-        let controller = settingsController ?? SettingsWindowController(store: store)
+        // Always create a fresh controller so the SwiftUI view's `.onAppear`
+        // (and the focus assignment it triggers) runs on every open.
+        settingsController?.close()
+        let controller = SettingsWindowController(store: store)
         settingsController = controller
         controller.present()
     }
