@@ -9,22 +9,15 @@ struct PromptLMMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        // No primary window. Settings scene is opened on demand from the menu.
-        Settings {
-            SettingsPlaceholderView()
-        }
-    }
-}
-
-private struct SettingsPlaceholderView: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Settings")
-                .font(.title2)
-            Text("Repository path, hotkey recorder, and autostart will live here.")
-                .foregroundStyle(.secondary)
-        }
-        .padding(24)
-        .frame(width: 420, height: 200)
+        // We deliberately ship no SwiftUI Settings scene: in an LSUIElement
+        // (menu-bar-only) app it does not get a reliable show path. The
+        // status bar's "Settings…" item presents a SettingsWindowController
+        // directly. Returning a no-op WindowGroup keeps Scene{} happy
+        // without putting a window on screen at launch.
+        #if compiler(>=5.9)
+        Settings { EmptyView() }
+        #else
+        WindowGroup { EmptyView() }
+        #endif
     }
 }
