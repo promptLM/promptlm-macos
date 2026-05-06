@@ -13,11 +13,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private let statusItem: NSStatusItem
     private let store: SettingsStore
-    private var repository: LocalFolderRepository
+    private var repository: MultiRepository
     private let renderer = PromptRenderer()
     private let inserter = PasteInserter()
     private let hotkey = GlobalHotkey()
-    private var lastLoad: LocalFolderRepository.LoadResult?
+    private var lastLoad: MultiRepository.LoadResult?
     private var formController: FormWindowController?
     private var settingsController: SettingsWindowController?
     private var cancellables: Set<AnyCancellable> = []
@@ -25,7 +25,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     init(store: SettingsStore = .shared) {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.store = store
-        self.repository = LocalFolderRepository(root: store.repositoryURL)
+        self.repository = MultiRepository(fallbackRoot: store.repositoryURL)
         super.init()
         configureButton()
         let menu = NSMenu()
@@ -45,7 +45,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                     fileURLWithPath: (newPath as NSString).expandingTildeInPath,
                     isDirectory: true
                 )
-                self.repository = LocalFolderRepository(root: url)
+                self.repository = MultiRepository(fallbackRoot: url)
                 self.rebuildMenu()
             }
             .store(in: &cancellables)
@@ -106,36 +106,29 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let result = repository.load()
         lastLoad = result
 
-        if result.prompts.isEmpty {
-            let empty = NSMenuItem(
-                title: "No prompts in \(displayPath(repository.root))",
-                action: nil,
-                keyEquivalent: ""
-            )
-            empty.isEnabled = false
-            menu.addItem(empty)
+        addProjectSections(result, to: menu)
 
-            let reveal = NSMenuItem(
-                title: "Reveal repository folder in Finder",
-                action: #selector(revealRepositoryFolder),
-                keyEquivalent: ""
+        if let ctxErr = result.contextError {
+            menu.addItem(.separator())
+            let item = NSMenuItem(
+                title: "context.json: \(ctxErr.description)",
+                action: nil, keyEquivalent: ""
             )
-            reveal.target = self
-            menu.addItem(reveal)
-        } else {
-            addPromptItems(result.prompts, to: menu)
+            item.isEnabled = false
+            menu.addItem(item)
         }
 
-        if !result.errors.isEmpty {
+        let allErrors = result.sections.flatMap(\.errors)
+        if !allErrors.isEmpty {
             menu.addItem(.separator())
             let header = NSMenuItem(
-                title: "\(result.errors.count) file(s) failed to load",
+                title: "\(allErrors.count) prompt file(s) failed to load",
                 action: nil,
                 keyEquivalent: ""
             )
             header.isEnabled = false
             menu.addItem(header)
-            for err in result.errors.prefix(5) {
+            for err in allErrors.prefix(5) {
                 let item = NSMenuItem(title: "  \(err.description)", action: nil, keyEquivalent: "")
                 item.isEnabled = false
                 menu.addItem(item)
@@ -174,32 +167,100 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(quit)
     }
 
-    private func addPromptItems(_ prompts: [PromptSpec], to menu: NSMenu) {
-        // Group prompts by their `group` field; ungrouped go to the top.
-        let grouped = Dictionary(grouping: prompts, by: { $0.group ?? "" })
+    private func addProjectSections(_ result: MultiRepository.LoadResult, to menu: NSMenu) {
+        if result.sections.isEmpty {
+            let empty = NSMenuItem(
+                title: "No projects registered (run promptlm CLI first)",
+                action: nil, keyEquivalent: ""
+            )
+            empty.isEnabled = false
+            menu.addItem(empty)
+            return
+        }
+
+        for (index, section) in result.sections.enumerated() {
+            if index > 0 { menu.addItem(.separator()) }
+            addSection(section, to: menu)
+        }
+    }
+
+    private func addSection(_ section: MultiRepository.Section, to menu: NSMenu) {
+        let project = section.project
+        let header = NSMenuItem(
+            title: headerTitle(for: section),
+            action: nil, keyEquivalent: ""
+        )
+        header.isEnabled = false
+        menu.addItem(header)
+
+        switch section.health {
+        case .missingPath(let url):
+            let warning = NSMenuItem(
+                title: "  Local repo missing: \(displayPath(url))",
+                action: nil, keyEquivalent: ""
+            )
+            warning.isEnabled = false
+            menu.addItem(warning)
+            return
+        case .noLocalPath:
+            let warning = NSMenuItem(
+                title: "  No local path configured",
+                action: nil, keyEquivalent: ""
+            )
+            warning.isEnabled = false
+            menu.addItem(warning)
+            return
+        case .healthy:
+            break
+        }
+
+        if section.prompts.isEmpty {
+            let empty = NSMenuItem(title: "  No prompts found", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            menu.addItem(empty)
+            return
+        }
+
+        // Group prompts by their `group` field; ungrouped first.
+        let grouped = Dictionary(grouping: section.prompts, by: { $0.group ?? "" })
         let ungrouped = grouped[""] ?? []
         let groups = grouped.keys
             .filter { !$0.isEmpty }
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
 
         for prompt in ungrouped {
-            menu.addItem(makePromptItem(prompt))
+            let item = makePromptItem(prompt, project: project)
+            item.indentationLevel = 1
+            menu.addItem(item)
         }
         for groupName in groups {
-            if let entries = grouped[groupName], !entries.isEmpty {
-                let header = NSMenuItem(title: groupName, action: nil, keyEquivalent: "")
-                header.isEnabled = false
-                menu.addItem(header)
-                for prompt in entries {
-                    let item = makePromptItem(prompt)
-                    item.indentationLevel = 1
-                    menu.addItem(item)
-                }
+            guard let entries = grouped[groupName], !entries.isEmpty else { continue }
+            let groupHeader = NSMenuItem(title: "  \(groupName)", action: nil, keyEquivalent: "")
+            groupHeader.isEnabled = false
+            menu.addItem(groupHeader)
+            for prompt in entries {
+                let item = makePromptItem(prompt, project: project)
+                item.indentationLevel = 2
+                menu.addItem(item)
             }
         }
     }
 
-    private func makePromptItem(_ prompt: PromptSpec) -> NSMenuItem {
+    private func headerTitle(for section: MultiRepository.Section) -> String {
+        let count = section.prompts.count
+        switch section.health {
+        case .healthy:
+            return count == 0
+                ? section.project.name
+                : "\(section.project.name)  ·  \(count) prompt\(count == 1 ? "" : "s")"
+        case .missingPath:
+            return "\(section.project.name)  ·  ⚠ missing"
+        case .noLocalPath:
+            return "\(section.project.name)  ·  ⚠ no path"
+        }
+    }
+
+    private func makePromptItem(_ prompt: PromptSpec, project: ContextProject) -> NSMenuItem {
         let item = NSMenuItem(
             title: prompt.name,
             action: #selector(promptSelected(_:)),
@@ -207,9 +268,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         )
         item.target = self
         item.representedObject = prompt
-        if let desc = prompt.description, !desc.isEmpty {
-            item.toolTip = desc
-        }
+        var tooltipParts: [String] = [project.name]
+        if let desc = prompt.description, !desc.isEmpty { tooltipParts.append(desc) }
+        item.toolTip = tooltipParts.joined(separator: " — ")
         return item
     }
 
@@ -328,10 +389,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func revealRepositoryFolder() {
         let fm = FileManager.default
-        if !fm.fileExists(atPath: repository.root.path) {
-            try? fm.createDirectory(at: repository.root, withIntermediateDirectories: true)
+        let url = store.repositoryURL
+        if !fm.fileExists(atPath: url.path) {
+            try? fm.createDirectory(at: url, withIntermediateDirectories: true)
         }
-        NSWorkspace.shared.activateFileViewerSelecting([repository.root])
+        NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
     @objc private func openSettings() {
