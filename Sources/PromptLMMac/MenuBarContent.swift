@@ -20,6 +20,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private var lastLoad: MultiRepository.LoadResult?
     private var formController: FormWindowController?
     private var settingsController: SettingsWindowController?
+    private var pickerController: QuickPickerWindowController?
     private var cancellables: Set<AnyCancellable> = []
 
     init(store: SettingsStore = .shared) {
@@ -61,7 +62,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private func registerHotkey(_ spec: HotkeySpec) {
         hotkey.register(spec) { [weak self] in
-            self?.openStatusMenu()
+            self?.openQuickPicker()
         }
     }
 
@@ -136,6 +137,15 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
+
+        let search = NSMenuItem(
+            title: "Search prompts…",
+            action: #selector(openQuickPickerFromMenu),
+            keyEquivalent: "f"
+        )
+        search.keyEquivalentModifierMask = [.command]
+        search.target = self
+        menu.addItem(search)
 
         let reload = NSMenuItem(
             title: "Reload prompts",
@@ -397,9 +407,55 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openSettings() {
-        let controller = settingsController ?? SettingsWindowController(store: store)
+        // Always create a fresh controller so the SwiftUI view's `.onAppear`
+        // (and the focus assignment it triggers) runs on every open.
+        settingsController?.close()
+        let controller = SettingsWindowController(store: store)
         settingsController = controller
         controller.present()
+    }
+
+    @objc private func openQuickPickerFromMenu() {
+        openQuickPicker()
+    }
+
+    private func openQuickPicker() {
+        // Re-read the index every time so the picker reflects on-disk changes.
+        let result = repository.load()
+        lastLoad = result
+        let index = PromptIndex(from: result)
+
+        // Capture the user's frontmost app *before* we activate ourselves,
+        // so a picker selection pastes back into the right place.
+        let target = NSWorkspace.shared.frontmostApplication
+
+        // Replace any previous picker window — the panel autocloses on focus
+        // loss but the controller can stick around if we got here through
+        // an unusual path.
+        pickerController?.close()
+        let controller = QuickPickerWindowController(
+            index: index,
+            onActivate: { [weak self] entry in
+                self?.handlePickerSelection(entry, target: target)
+            },
+            onClose: { [weak self] in
+                self?.pickerController = nil
+            }
+        )
+        pickerController = controller
+        controller.present()
+    }
+
+    private func handlePickerSelection(
+        _ entry: IndexedPrompt,
+        target: NSRunningApplication?
+    ) {
+        let prompt = entry.prompt
+        if prompt.placeholders.isEmpty {
+            renderAndInsert(prompt: prompt, values: [:], target: target)
+        } else {
+            presentForm(for: prompt, target: target)
+        }
     }
 
     @objc private func quit() {

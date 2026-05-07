@@ -7,6 +7,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var store: SettingsStore
     @State private var loginItemError: String?
+    @FocusState private var repositoryPathFocused: Bool
 
     var body: some View {
         Form {
@@ -14,6 +15,7 @@ struct SettingsView: View {
                 HStack {
                     TextField("Folder", text: $store.repositoryPath)
                         .textFieldStyle(.roundedBorder)
+                        .focused($repositoryPathFocused)
                     Button("Choose…") { pickFolder() }
                     Button("Reveal") { revealFolder() }
                         .disabled(!folderExists)
@@ -53,6 +55,13 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 480, height: 360)
         .onChange(of: store.launchAtLogin, perform: applyLaunchAtLogin)
+        .onAppear {
+            // Defer to next runloop so the window is fully presented before
+            // SwiftUI applies focus — same fix as the picker and form views.
+            DispatchQueue.main.async {
+                repositoryPathFocused = true
+            }
+        }
     }
 
     private var folderExists: Bool {
