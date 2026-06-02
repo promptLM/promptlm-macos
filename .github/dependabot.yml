@@ -1,0 +1,12 @@
+# Keep GitHub Actions refs (and their SHA pins) current. Other
+# ecosystems intentionally not enabled here — add them deliberately so
+# the maintainer can stage the resulting PR flow.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "is: chore"
+      - "in: deps"
